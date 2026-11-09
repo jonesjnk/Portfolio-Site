@@ -17,12 +17,12 @@
   },
   "dependencies": {
     "@astrojs/sitemap": "^3.7.4",
-    "astro": "^7.4.7"
+    "astro": "^7.4.8"
   },
   "devDependencies": {
-    "@astrojs/compiler-rs": "^0.5.2",
-    "oxfmt": "^0.77.0",
-    "oxlint": "^1.92.0"
+    "@astrojs/compiler-rs": "^0.5.3",
+    "oxfmt": "^0.78.0",
+    "oxlint": "^1.93.0"
   },
   "engines": {
     "node": ">=26.13"
