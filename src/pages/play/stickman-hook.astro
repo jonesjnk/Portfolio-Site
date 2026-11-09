@@ -45,21 +45,7 @@ import GameLayout from '../../layouts/GameLayout.astro';
   </game-stickman-hook>
 </GameLayout>
 
-<script>
-  import { defineElement } from '../../scripts/game';
-
-  defineElement('game-stickman-hook', (root) => {
-    const iframe = root.querySelector('iframe');
-    const focus = () => iframe.focus();
-
-    root.querySelector('.left-section').addEventListener('click', focus);
-    root
-      .querySelector('.fullscreen-btn')
-      .addEventListener('click', () => iframe.requestFullscreen());
-    iframe.addEventListener('load', focus);
-    focus();
-  });
-</script>
+<script src="../../scripts/games/stickman-hook.js"></script>
 
 <style>
   .game-iframe {
