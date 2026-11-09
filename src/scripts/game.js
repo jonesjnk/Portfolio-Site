@@ -87,7 +87,7 @@ export function createLoop(update) {
     if (!running) return;
     const delta = last ? now - last : 0;
     last = now;
-    update(delta, now);
+    update(delta);
     if (running) frame = requestAnimationFrame(tick);
   };
 

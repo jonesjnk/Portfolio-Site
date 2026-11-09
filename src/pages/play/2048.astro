@@ -52,17 +52,19 @@ import GameLayout from '../../layouts/GameLayout.astro';
     const scoreText = root.querySelector('[data-score]');
     const highScoreText = root.querySelector('[data-high-score]');
     const focus = () => iframe.focus();
+    let highScore = readNumber(HIGH_SCORE_KEY);
 
     const onMessage = ({ source, data }: MessageEvent) => {
       if (source !== iframe.contentWindow || data?.type !== '2048-update') return;
 
-      const highScore = Math.max(readNumber(HIGH_SCORE_KEY), data.score);
-      writeNumber(HIGH_SCORE_KEY, highScore);
       scoreText.textContent = String(data.score);
+      if (data.score <= highScore) return;
+      highScore = data.score;
+      writeNumber(HIGH_SCORE_KEY, highScore);
       highScoreText.textContent = String(highScore);
     };
 
-    highScoreText.textContent = String(readNumber(HIGH_SCORE_KEY));
+    highScoreText.textContent = String(highScore);
     root.querySelector('.left-section').addEventListener('click', focus);
     iframe.addEventListener('load', focus);
     addEventListener('message', onMessage);

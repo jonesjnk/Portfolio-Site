@@ -163,7 +163,7 @@ defineElement('game-tetris', (root) => {
   let isPaused = false;
   let score = 0;
   let highScore = readNumber(HIGH_SCORE_KEY);
-  let animationFrame = 0;
+  let animationTime = 0;
   let dropCounter = 0;
   let dropInterval = 1000;
   let lockDelayCounter = 0;
@@ -259,7 +259,7 @@ defineElement('game-tetris', (root) => {
         target.fillRect(bx, by, 1, 1);
 
         if (isLanded && target === ctx && matrix === player.matrix) {
-          const alpha = 0.3 + 0.3 * Math.sin(animationFrame * 0.08);
+          const alpha = 0.3 + 0.3 * Math.sin(animationTime * 0.0048);
           target.fillStyle = `rgba(0, 0, 0, ${alpha})`;
           target.fillRect(bx, by, 1, 1);
         }
@@ -306,19 +306,19 @@ defineElement('game-tetris', (root) => {
         ctx.fillStyle = gradient;
         ctx.fillRect(trail.x, trail.y, 1, trail.h);
       }
-
-      hardDropEffect.alpha -= 0.08;
     }
 
     drawMatrix(arena, { x: 0, y: 0 }, ctx);
 
     drawMatrix(player.matrix, { x: player.pos.x, y: getGhostY() }, ctx, true);
-    drawMatrix(player.matrix, player.pos, ctx, false);
+    drawMatrix(player.matrix, player.pos, ctx);
   }
 
   function updateScore() {
-    highScore = Math.max(highScore, score);
-    writeNumber(HIGH_SCORE_KEY, highScore);
+    if (score > highScore) {
+      highScore = score;
+      writeNumber(HIGH_SCORE_KEY, highScore);
+    }
     const level = Math.min(Math.floor(player.lines / 10) + 1, GRAVITY_BY_LEVEL.length - 1);
     dropInterval = 1000 / (60 * GRAVITY_BY_LEVEL[level]);
   }
@@ -460,7 +460,7 @@ defineElement('game-tetris', (root) => {
 
     if (player.hold === null) {
       player.hold = getPieceType(player.matrix);
-      player.matrix = createPiece(getPieceType(player.next));
+      player.matrix = player.next;
       player.next = getNextPiece();
       drawPreview(nextCtx, player.next);
     } else {
@@ -522,7 +522,8 @@ defineElement('game-tetris', (root) => {
   }
 
   function update(deltaTime) {
-    animationFrame++;
+    animationTime += deltaTime;
+    hardDropEffect.alpha = Math.max(0, hardDropEffect.alpha - deltaTime * 0.0048);
 
     handleHorizontalInput('left', -1, deltaTime);
     handleHorizontalInput('right', 1, deltaTime);
@@ -544,7 +545,7 @@ defineElement('game-tetris', (root) => {
 
   function resetGame() {
     loop.stop();
-    animationFrame = 0;
+    animationTime = 0;
 
     for (const row of arena) row.fill(0);
     score = 0;
