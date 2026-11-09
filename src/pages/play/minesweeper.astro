@@ -6,10 +6,10 @@ import GameLayout from '../../layouts/GameLayout.astro';
 <GameLayout title="Minesweeper">
   <game-minesweeper class="game-wrapper">
     <div class="left-section">
-      <div class="grid-frame">
+      <div class="board">
         <div class="grid"></div>
         <template data-cell>
-          <div class="cell"></div>
+          <div class="cell" data-state="hidden"></div>
         </template>
       </div>
 
@@ -32,9 +32,15 @@ import GameLayout from '../../layouts/GameLayout.astro';
         <h2 class="menu-title outcome-title" data-outcome>
           Game Over
         </h2>
-        <button class="overlay-btn" data-restart>
-          Play Again
-        </button>
+        <p class="outcome-detail" data-detail hidden></p>
+        <div class="overlay-actions">
+          <button class="overlay-btn" data-restart>
+            Play Again
+          </button>
+          <button class="overlay-btn" data-menu>
+            Change Level
+          </button>
+        </div>
       </div>
 
       <div class="overlay-msg" data-paused hidden>
@@ -53,9 +59,19 @@ import GameLayout from '../../layouts/GameLayout.astro';
 
         <div class="score-divider"></div>
 
-        <div class="label time-label">Time</div>
-        <div class="value time-value" data-time>
-          0:00
+        <div class="stats">
+          <div>
+            <div class="label stat-label">Time</div>
+            <div class="value stat-value" data-time>
+              0:00
+            </div>
+          </div>
+          <div>
+            <div class="label stat-label best-label">Best</div>
+            <div class="value stat-value best-value" data-best>
+              —
+            </div>
+          </div>
         </div>
       </div>
 
@@ -63,6 +79,7 @@ import GameLayout from '../../layouts/GameLayout.astro';
         controls={[
           { action: 'Reveal', keys: 'Click' },
           { action: 'Flag', keys: 'Right Click' },
+          { action: 'Clear Around', keys: 'Click Number' },
           { action: 'Pause', keys: ['Esc', 'P'] },
           { action: 'Restart', keys: 'R' },
         ]}
@@ -94,49 +111,169 @@ import GameLayout from '../../layouts/GameLayout.astro';
     color: #2ed573;
   }
 
-  .grid-frame {
+  .outcome-title:has(+ .outcome-detail:not([hidden])) {
+    margin-bottom: 8px;
+  }
+
+  .outcome-detail {
+    margin-bottom: 22px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: #ffd700;
+  }
+
+  .board {
     padding: 10px;
-    background: #444444;
-    border-radius: 4px;
-    border: 1px solid #333333;
+    background: #0d0d0d;
+    border-radius: 10px;
   }
 
   .grid {
+    --tile: #2a2e3b;
+    --tile-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 2px 0 rgba(0, 0, 0, 0.5);
+    --flag: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><rect x='5' y='3' width='2.6' height='18' rx='1.3'/><path d='M8 4h10.5a1 1 0 0 1 .8 1.6L16.5 9l2.8 3.4a1 1 0 0 1-.8 1.6H8z'/></svg>");
+    --mine: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill-rule='evenodd' d='M12 5.5a6.5 6.5 0 1 1 0 13 6.5 6.5 0 0 1 0-13zm-2 3a1.6 1.6 0 1 0 0 3.2 1.6 1.6 0 0 0 0-3.2z'/><path d='M12 2.5v4M12 17.5v4M2.5 12h4M17.5 12h4M5.3 5.3l2.8 2.8M15.9 15.9l2.8 2.8M5.3 18.7l2.8-2.8M15.9 8.1l2.8-2.8' stroke='black' stroke-width='2.4' stroke-linecap='round'/></svg>");
     display: grid;
-    gap: 0;
-    background: #666666;
-    border: 2px solid #666666;
-  }
-
-  .grid:empty {
-    width: 420px;
-    height: 420px;
-  }
-
-  .cell {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 26px;
-    height: 26px;
-    font-weight: 900;
-    font-size: 16px;
-    background: #333333;
-    border-top: 2px solid rgba(255, 255, 255, 0.2);
-    border-left: 2px solid rgba(255, 255, 255, 0.2);
-    border-bottom: 2px solid rgba(0, 0, 0, 0.5);
-    border-right: 2px solid rgba(0, 0, 0, 0.5);
+    grid-template-columns: repeat(var(--cols), var(--size));
+    grid-auto-rows: var(--size);
+    gap: 3px;
     cursor: pointer;
   }
 
-  .cell.revealed {
-    background: #222222;
-    border: 1px solid #333333;
+  .grid:empty {
+    width: 493px;
+    height: 493px;
   }
 
-  .cell.mine {
-    background: #cc0000;
-    border: 1px solid #990000;
+  .grid.locked {
+    pointer-events: none;
+  }
+
+  .cell {
+    position: relative;
+    display: grid;
+    place-items: center;
+    font-size: calc(var(--size) * 0.56);
+    font-weight: 900;
+    line-height: 1;
+    background-color: var(--tile);
+    border-radius: calc(var(--size) * 0.22);
+    box-shadow: var(--tile-shadow);
+    transition:
+      transform 0.12s ease,
+      background-color 0.12s ease;
+  }
+
+  .cell:is([data-state='hidden'], [data-state='flag']):hover {
+    background-color: #363b4b;
+  }
+
+  .cell[data-state='hidden']:active,
+  .cell.pressed {
+    background-color: #20232d;
+    box-shadow: none;
+    transform: scale(0.88);
+  }
+
+  .cell:is([data-state='revealed'], [data-state='mine'], [data-state='exploded']) {
+    background-color: rgba(255, 255, 255, 0.035);
+    box-shadow: none;
+  }
+
+  .cell[data-state='revealed'] {
+    animation: reveal 0.35s cubic-bezier(0.16, 1, 0.3, 1) var(--delay) backwards;
+  }
+
+  .cell[data-count='1'] {
+    color: #00a2ff;
+  }
+
+  .cell[data-count='2'] {
+    color: #2ed573;
+  }
+
+  .cell[data-count='3'] {
+    color: #ff4757;
+  }
+
+  .cell[data-count='4'] {
+    color: #a55eea;
+  }
+
+  .cell[data-count='5'] {
+    color: #ffa502;
+  }
+
+  .cell[data-count='6'] {
+    color: #1dd1a1;
+  }
+
+  .cell[data-count='7'] {
+    color: #ff6b81;
+  }
+
+  .cell[data-count='8'] {
+    color: #94a3b8;
+  }
+
+  .cell:is(
+      [data-state='flag'],
+      [data-state='misflag'],
+      [data-state='mine'],
+      [data-state='exploded']
+    )::before {
+    content: '';
+    position: absolute;
+    inset: 20%;
+    background: currentColor;
+    mask: var(--icon) center / contain no-repeat;
+  }
+
+  .cell:is([data-state='flag'], [data-state='misflag'])::before {
+    --icon: var(--flag);
+  }
+
+  .cell:is([data-state='mine'], [data-state='exploded'])::before {
+    --icon: var(--mine);
+  }
+
+  .cell[data-state='flag'] {
+    color: #ff4757;
+  }
+
+  .cell[data-state='flag']::before {
+    animation: plant 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) var(--delay) backwards;
+  }
+
+  .cell[data-state='misflag'] {
+    color: #4a5163;
+  }
+
+  .cell[data-state='misflag']::after {
+    content: '';
+    position: absolute;
+    width: 80%;
+    height: 2px;
+    background: #ff4757;
+    border-radius: 2px;
+    transform: rotate(-45deg);
+    animation: strike 0.25s ease-out var(--delay) backwards;
+  }
+
+  .cell[data-state='mine'] {
+    color: #ff8a95;
+    background-color: rgba(255, 71, 87, 0.14);
+    animation: mine-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) var(--delay) backwards;
+  }
+
+  .cell[data-state='exploded'] {
+    z-index: 1;
+    color: #ffffff;
+    background-color: #ff4757;
+    box-shadow: 0 0 16px rgba(255, 71, 87, 0.6);
+    animation: explode 0.7s cubic-bezier(0.16, 1, 0.3, 1);
   }
 
   .mines-label {
@@ -153,13 +290,74 @@ import GameLayout from '../../layouts/GameLayout.astro';
     margin: 12px 0;
   }
 
-  .time-label {
-    margin-bottom: 4px;
-    color: #94a3b8;
+  .stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    width: 100%;
+    text-align: center;
   }
 
-  .time-value {
+  .stat-label {
+    margin-bottom: 4px;
+  }
+
+  .stat-value {
     color: #94a3b8;
     font-size: 24px;
+  }
+
+  .best-label,
+  .best-value {
+    color: #ffd700;
+  }
+
+  @keyframes reveal {
+    from {
+      color: transparent;
+      background-color: var(--tile);
+      box-shadow: var(--tile-shadow);
+    }
+    40% {
+      color: transparent;
+      transform: scale(0.82);
+    }
+  }
+
+  @keyframes plant {
+    from {
+      transform: translateY(40%) scale(0);
+    }
+  }
+
+  @keyframes strike {
+    from {
+      transform: rotate(-45deg) scaleX(0);
+    }
+  }
+
+  @keyframes mine-in {
+    from {
+      color: transparent;
+      background-color: var(--tile);
+      box-shadow: var(--tile-shadow);
+      transform: scale(1);
+    }
+    50% {
+      transform: scale(1.18);
+    }
+  }
+
+  @keyframes explode {
+    from {
+      transform: scale(1.6);
+      box-shadow:
+        0 0 0 0 rgba(255, 71, 87, 0.9),
+        0 0 16px rgba(255, 71, 87, 0.6);
+    }
+    to {
+      box-shadow:
+        0 0 0 calc(var(--size) * 1.4) rgba(255, 71, 87, 0),
+        0 0 16px rgba(255, 71, 87, 0.6);
+    }
   }
 </style>

@@ -1,4 +1,15 @@
-import { defineElement, onGameKey, onPause } from '../game';
+import { defineElement, onGameKey, onPause, readNumber, writeNumber } from '../game';
+
+const REVEAL_STEP_MS = 24;
+const CHAIN_MS = 1100;
+const WAVE_MS = 900;
+const RESULT_DELAY_MS = 700;
+
+const DIFFICULTIES = {
+  easy: { rows: 9, cols: 9, mines: 10, size: 38 },
+  medium: { rows: 16, cols: 16, mines: 40, size: 28 },
+  hard: { rows: 20, cols: 24, mines: 99, size: 25 },
+};
 
 const NEIGHBORS = [
   [-1, -1],
@@ -11,259 +22,348 @@ const NEIGHBORS = [
   [1, 1],
 ];
 
-const DIFFICULTIES = {
-  easy: { rows: 9, cols: 9, mines: 10 },
-  medium: { rows: 16, cols: 16, mines: 40 },
-  hard: { rows: 20, cols: 24, mines: 99 },
-};
-
-const NUMBER_COLORS = [
-  null,
-  '#5c5cff',
-  '#00e600',
-  '#ff3333',
-  '#8888ff',
-  '#ffaa00',
-  '#00aaaa',
-  '#ffffff',
-  '#888888',
+const SHAKE = [
+  { transform: 'translate(0, 0)' },
+  { transform: 'translate(-9px, 4px)' },
+  { transform: 'translate(8px, -5px)' },
+  { transform: 'translate(-5px, -3px)' },
+  { transform: 'translate(3px, 3px)' },
+  { transform: 'translate(0, 0)' },
 ];
 
-function range(n) {
-  return Array.from({ length: n }, (_, i) => i);
+const WAVE = [
+  { transform: 'scale(1)' },
+  { transform: 'scale(0.84)', backgroundColor: 'rgba(46, 213, 115, 0.35)', offset: 0.35 },
+  { transform: 'scale(1)' },
+];
+
+function range(length) {
+  return Array.from({ length }, (_, index) => index);
 }
 
-function createGrid({ rows, cols }) {
-  return range(rows).map((y) =>
-    range(cols).map((x) => ({
-      x,
-      y,
-      isMine: false,
-      isRevealed: false,
-      isFlagged: false,
-      neighborCount: 0,
-    })),
-  );
+function formatTime(ms) {
+  const seconds = Math.floor(ms / 1000);
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+}
+
+function distance(a, b) {
+  return Math.hypot(a.x - b.x, a.y - b.y);
+}
+
+function bestKey(level) {
+  return `minesweeper-best-${level}`;
 }
 
 defineElement('game-minesweeper', (root) => {
+  const board = root.querySelector('.board');
   const gridEl = root.querySelector('.grid');
   const cellTemplate = root.querySelector('template[data-cell]');
   const startOverlay = root.querySelector('[data-start]');
   const overOverlay = root.querySelector('[data-over]');
   const pausedOverlay = root.querySelector('[data-paused]');
   const outcomeTitle = root.querySelector('[data-outcome]');
+  const outcomeDetail = root.querySelector('[data-detail]');
   const minesText = root.querySelector('[data-mines]');
   const timeText = root.querySelector('[data-time]');
+  const bestText = root.querySelector('[data-best]');
 
   let status = 'start';
+  let level = 'medium';
   let isWon = false;
+  let isNewBest = false;
   let isPaused = false;
-  let difficulty = DIFFICULTIES.medium;
+  let isFirstClick = true;
   let grid = [];
   let cells = [];
+  let pressed = [];
   let flagsPlaced = 0;
-  let timer = 0;
+  let safeLeft = 0;
+  let best = 0;
+  let elapsed = 0;
+  let startedAt = 0;
   let timerId;
-  let isFirstClick = true;
+  let resultTimer;
+
+  const difficulty = () => DIFFICULTIES[level];
+  const canPlay = () => status === 'playing' && !isPaused;
+  const currentTime = () => (timerId ? elapsed + performance.now() - startedAt : elapsed);
 
   function startTimer() {
-    clearInterval(timerId);
-    timerId = setInterval(() => {
-      timer++;
-      render();
-    }, 1000);
+    startedAt = performance.now();
+    timerId = setInterval(render, 250);
   }
 
   function stopTimer() {
+    if (!timerId) return;
     clearInterval(timerId);
-  }
-
-  function formattedTime() {
-    const minutes = Math.floor(timer / 60);
-    const seconds = timer % 60;
-    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-  }
-
-  function buildGrid() {
-    grid = createGrid(difficulty);
-    cells = grid.flat().map((_, index) => {
-      const element = cellTemplate.content.firstElementChild.cloneNode(true);
-      element.dataset.index = String(index);
-      return element;
-    });
-    gridEl.style.gridTemplateColumns = `repeat(${difficulty.cols}, 1fr)`;
-    gridEl.replaceChildren(...cells);
+    elapsed += performance.now() - startedAt;
+    timerId = undefined;
   }
 
   function render() {
-    for (const [index, cell] of grid.flat().entries()) {
-      const element = cells[index];
-      element.classList.toggle('revealed', cell.isRevealed);
-      element.classList.toggle('mine', cell.isRevealed && cell.isMine);
-
-      if (cell.isFlagged) element.textContent = '🚩';
-      else if (cell.isRevealed && cell.isMine) element.textContent = '💣';
-      else if (cell.isRevealed && cell.neighborCount > 0)
-        element.textContent = String(cell.neighborCount);
-      else element.textContent = '';
-      element.style.color = NUMBER_COLORS[cell.neighborCount] ?? '';
-    }
-
     startOverlay.hidden = status !== 'start';
     overOverlay.hidden = status !== 'over';
     pausedOverlay.hidden = !isPaused;
+    gridEl.classList.toggle('locked', !canPlay());
     outcomeTitle.textContent = isWon ? 'You Win!' : 'Game Over';
     outcomeTitle.classList.toggle('won', isWon);
-    minesText.textContent = String(difficulty.mines - flagsPlaced);
-    timeText.textContent = formattedTime();
+    outcomeDetail.hidden = !isWon;
+    outcomeDetail.textContent = `${isNewBest ? 'New Best' : 'Time'} · ${formatTime(elapsed)}`;
+    minesText.textContent = String(difficulty().mines - flagsPlaced);
+    timeText.textContent = formatTime(currentTime());
+    bestText.textContent = best ? formatTime(best) : '—';
   }
 
-  function resetBoard() {
+  function buildBoard() {
+    const { rows, cols, mines, size } = difficulty();
     stopTimer();
-    timer = 0;
+    clearTimeout(resultTimer);
+
+    grid = range(rows).map((y) =>
+      range(cols).map((x) => ({
+        x,
+        y,
+        isMine: false,
+        isRevealed: false,
+        isFlagged: false,
+        isExploded: false,
+        neighborCount: 0,
+        element: cellTemplate.content.firstElementChild.cloneNode(true),
+      })),
+    );
+    cells = grid.flat();
+    for (const [index, cell] of cells.entries()) cell.element.dataset.index = String(index);
+    gridEl.style.setProperty('--cols', String(cols));
+    gridEl.style.setProperty('--size', `${size}px`);
+    gridEl.replaceChildren(...cells.map((cell) => cell.element));
+
+    pressed = [];
     flagsPlaced = 0;
+    safeLeft = rows * cols - mines;
+    elapsed = 0;
     isFirstClick = true;
     isPaused = false;
-    buildGrid();
+    isWon = false;
+    isNewBest = false;
+    best = readNumber(bestKey(level));
   }
 
   function showStartScreen() {
+    buildBoard();
     status = 'start';
-    resetBoard();
     render();
   }
 
-  function startGame(level) {
-    difficulty = DIFFICULTIES[level];
+  function startGame(nextLevel) {
+    level = nextLevel;
+    buildBoard();
     status = 'playing';
-    resetBoard();
     render();
   }
 
-  function inBounds(x, y) {
-    return x >= 0 && x < difficulty.cols && y >= 0 && y < difficulty.rows;
+  function restart() {
+    if (status !== 'start') startGame(level);
   }
 
-  function isMineAt(x, y) {
-    return inBounds(x, y) && grid[y][x].isMine;
+  function neighborsOf({ x, y }) {
+    return NEIGHBORS.map(([dx, dy]) => grid[y + dy]?.[x + dx]).filter(Boolean);
   }
 
-  function calculateNumbers() {
-    for (let y = 0; y < difficulty.rows; y++) {
-      for (let x = 0; x < difficulty.cols; x++) {
-        if (grid[y][x].isMine) continue;
-        grid[y][x].neighborCount = NEIGHBORS.filter(([dx, dy]) => isMineAt(x + dx, y + dy)).length;
-      }
+  function placeMines(origin) {
+    const candidates = cells.filter(
+      (cell) => Math.abs(cell.x - origin.x) > 1 || Math.abs(cell.y - origin.y) > 1,
+    );
+    for (let i = 0; i < difficulty().mines; i++) {
+      const j = i + Math.floor(Math.random() * (candidates.length - i));
+      [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
+      candidates[i].isMine = true;
+    }
+    for (const cell of cells) {
+      cell.neighborCount = neighborsOf(cell).filter((neighbor) => neighbor.isMine).length;
     }
   }
 
-  function placeMines(safeX, safeY) {
-    let minesToPlace = difficulty.mines;
-    while (minesToPlace > 0) {
-      const y = Math.floor(Math.random() * difficulty.rows);
-      const x = Math.floor(Math.random() * difficulty.cols);
-      if (grid[y][x].isMine) continue;
-      if (Math.abs(x - safeX) <= 1 && Math.abs(y - safeY) <= 1) continue;
-      grid[y][x].isMine = true;
-      minesToPlace--;
-    }
-    calculateNumbers();
+  function stateOf(cell) {
+    if (cell.isExploded) return 'exploded';
+    if (cell.isRevealed) return cell.isMine ? 'mine' : 'revealed';
+    if (cell.isFlagged) return cell.isMine || status === 'playing' ? 'flag' : 'misflag';
+    return 'hidden';
   }
 
-  function revealCell(startX, startY) {
-    const stack = [[startX, startY]];
+  function paint(cell, delay = 0) {
+    const { element } = cell;
+    element.dataset.state = stateOf(cell);
+    element.style.setProperty('--delay', `${Math.round(delay)}ms`);
+    if (element.dataset.state === 'revealed' && cell.neighborCount > 0) {
+      element.dataset.count = String(cell.neighborCount);
+      element.textContent = element.dataset.count;
+    }
+  }
 
-    while (stack.length > 0) {
-      const [x, y] = stack.pop();
-      if (!inBounds(x, y)) continue;
-
-      const cell = grid[y][x];
+  function flood(starts) {
+    const revealed = [];
+    const queue = starts.map((cell) => [cell, 0]);
+    for (const [cell, depth] of queue) {
       if (cell.isRevealed || cell.isFlagged) continue;
       cell.isRevealed = true;
-
-      if (cell.neighborCount === 0 && !cell.isMine) {
-        for (const [dx, dy] of NEIGHBORS) stack.push([x + dx, y + dy]);
-      }
+      revealed.push([cell, depth]);
+      if (cell.isMine) continue;
+      safeLeft--;
+      if (cell.neighborCount > 0) continue;
+      for (const neighbor of neighborsOf(cell)) queue.push([neighbor, depth + 1]);
     }
+    return revealed;
   }
 
-  function gameOver(won) {
+  function open(starts) {
+    const revealed = flood(starts);
+    if (revealed.length === 0) return;
+
+    const hits = revealed.filter(([cell]) => cell.isMine).map(([cell]) => cell);
+    for (const cell of hits) cell.isExploded = true;
+    for (const [cell, depth] of revealed) paint(cell, depth * REVEAL_STEP_MS);
+
+    if (hits.length > 0) lose(hits[0]);
+    else if (safeLeft === 0) win(starts[0], revealed.at(-1)[1] * REVEAL_STEP_MS);
+  }
+
+  function finish(won) {
     stopTimer();
-    status = 'over';
+    status = 'ending';
     isWon = won;
-    if (won) return;
-    for (const cell of grid.flat()) {
-      if (cell.isMine) cell.isRevealed = true;
+  }
+
+  function showResult(delay) {
+    render();
+    resultTimer = setTimeout(() => {
+      status = 'over';
+      render();
+    }, delay);
+  }
+
+  function lose(origin) {
+    finish(false);
+    const mines = cells.filter((cell) => cell.isMine && !cell.isRevealed && !cell.isFlagged);
+    const farthest = Math.max(1, ...mines.map((cell) => distance(cell, origin)));
+
+    for (const cell of mines) {
+      const delay = (distance(cell, origin) / farthest) * CHAIN_MS;
+      cell.isRevealed = true;
+      paint(cell, delay);
     }
+    for (const cell of cells) {
+      if (cell.isFlagged && !cell.isMine) paint(cell, CHAIN_MS);
+    }
+
+    board.animate(SHAKE, { duration: 450, easing: 'ease-out' });
+    showResult(CHAIN_MS + RESULT_DELAY_MS);
   }
 
-  function checkWin() {
-    const { rows, cols, mines } = difficulty;
-    const revealedCount = grid.flat().filter((cell) => cell.isRevealed).length;
-    if (rows * cols - revealedCount === mines) gameOver(true);
+  function win(origin, startDelay) {
+    finish(true);
+    const farthest = Math.max(1, ...cells.map((cell) => distance(cell, origin)));
+
+    for (const cell of cells) {
+      const delay = startDelay + (distance(cell, origin) / farthest) * WAVE_MS;
+      cell.element.animate(WAVE, { duration: 500, delay, easing: 'ease-out' });
+      if (!cell.isMine) continue;
+      cell.isFlagged = true;
+      paint(cell, delay);
+    }
+    flagsPlaced = difficulty().mines;
+
+    isNewBest = !best || elapsed < best;
+    if (isNewBest) {
+      best = Math.round(elapsed);
+      writeNumber(bestKey(level), best);
+    }
+
+    showResult(startDelay + WAVE_MS + RESULT_DELAY_MS);
   }
 
-  function handleLeftClick(cell) {
-    if (status !== 'playing' || isPaused || cell.isRevealed || cell.isFlagged) return;
+  function reveal(cell) {
+    if (cell.isFlagged) return;
     if (isFirstClick) {
-      placeMines(cell.x, cell.y);
+      placeMines(cell);
       isFirstClick = false;
       startTimer();
     }
-    if (cell.isMine) {
-      gameOver(false);
-    } else {
-      revealCell(cell.x, cell.y);
-      checkWin();
-    }
+    open([cell]);
   }
 
-  function handleRightClick(cell) {
-    if (status !== 'playing' || isPaused || cell.isRevealed) return;
+  function chord(cell) {
+    const neighbors = neighborsOf(cell);
+    const flags = neighbors.filter((neighbor) => neighbor.isFlagged).length;
+    if (cell.neighborCount === 0 || flags !== cell.neighborCount) return;
+    open(neighbors.filter((neighbor) => !neighbor.isRevealed && !neighbor.isFlagged));
+  }
+
+  function toggleFlag(cell) {
+    if (cell.isRevealed) return;
     cell.isFlagged = !cell.isFlagged;
     flagsPlaced += cell.isFlagged ? 1 : -1;
+    paint(cell);
+  }
+
+  function press(cell) {
+    release();
+    if (!cell?.isRevealed || cell.neighborCount === 0) return;
+    pressed = neighborsOf(cell).filter((neighbor) => !neighbor.isRevealed && !neighbor.isFlagged);
+    for (const neighbor of pressed) neighbor.element.classList.add('pressed');
+  }
+
+  function release() {
+    for (const cell of pressed) cell.element.classList.remove('pressed');
+    pressed = [];
   }
 
   function togglePause() {
     if (status !== 'playing') return;
     isPaused = !isPaused;
     if (isPaused) stopTimer();
-    else startTimer();
+    else if (!isFirstClick) startTimer();
     render();
   }
 
   function cellFrom(event) {
-    const element = event.target.closest('.cell');
-    return element ? grid.flat()[Number(element.dataset.index)] : null;
+    return cells[event.target.closest('.cell')?.dataset.index];
   }
 
   gridEl.addEventListener('click', (event) => {
     const cell = cellFrom(event);
-    if (!cell) return;
-    handleLeftClick(cell);
+    if (!cell || !canPlay()) return;
+    if (cell.isRevealed) chord(cell);
+    else reveal(cell);
     render();
   });
 
   gridEl.addEventListener('contextmenu', (event) => {
-    const cell = cellFrom(event);
-    if (!cell) return;
     event.preventDefault();
-    handleRightClick(cell);
+    const cell = cellFrom(event);
+    if (!cell || !canPlay()) return;
+    toggleFlag(cell);
     render();
   });
+
+  gridEl.addEventListener('pointerdown', (event) => {
+    if (event.button === 0 && canPlay()) press(cellFrom(event));
+  });
+  gridEl.addEventListener('pointerup', release);
+  gridEl.addEventListener('pointerleave', release);
 
   for (const button of root.querySelectorAll('[data-level]')) {
     button.addEventListener('click', () => startGame(button.dataset.level));
   }
-  root.querySelector('[data-restart]').addEventListener('click', showStartScreen);
+  root.querySelector('[data-restart]').addEventListener('click', restart);
+  root.querySelector('[data-menu]').addEventListener('click', showStartScreen);
 
-  const cleanups = [onGameKey(['r'], showStartScreen), onPause(togglePause, () => isPaused)];
+  const cleanups = [onGameKey(['r'], restart), onPause(togglePause, () => isPaused)];
 
   showStartScreen();
 
   return () => {
     stopTimer();
+    clearTimeout(resultTimer);
     for (const cleanup of cleanups) cleanup();
   };
 });
