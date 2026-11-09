@@ -20,9 +20,12 @@ const PIPE_GAP = 120;
 const PIPE_INTERVAL_MS = 1200;
 const TARGET_FPS = 60;
 const STEP_MS = 1000 / TARGET_FPS;
+const PIPE_SPACING = PIPE_SPEED * (PIPE_INTERVAL_MS / STEP_MS);
 const CAP_HEIGHT = 26;
 const BODY_WIDTH = PIPE_WIDTH - 6;
 const CITY_TILE_WIDTH = 720;
+const SHAKE_TICKS = 16;
+const RETRY_TICKS = 50;
 
 const CLOUDS = [
   { ox: 30, y: 60, w: 80, h: 40 },
@@ -57,6 +60,10 @@ const BUILDINGS = [
 
 const HIGH_SCORE_KEY = 'flappy-bird-best-score';
 
+function random(min, max) {
+  return min + Math.random() * (max - min);
+}
+
 defineElement('game-flappy-bird', (root) => {
   const canvas = root.querySelector('canvas');
   const pausedOverlay = root.querySelector('[data-paused]');
@@ -71,8 +78,9 @@ defineElement('game-flappy-bird', (root) => {
   let score = 0;
   let highScore = readNumber(HIGH_SCORE_KEY);
 
-  const loop = createLoop((delta, timestamp) => {
-    frame(delta, timestamp);
+  const loop = createLoop((delta) => {
+    update(Math.min(delta, 50) / STEP_MS);
+    draw();
     render();
   });
 
@@ -85,31 +93,27 @@ defineElement('game-flappy-bird', (root) => {
   let groundOffset = 0;
   let cityOffset = 0;
   let cloudOffset = 0;
+  let ticks = 0;
   let bird;
   let pipes;
-  let lastPipeTime;
+  let pipeDistance;
   let deathTimer;
-  let wingFrame = 0;
-  let pausedAt = 0;
+  let shake;
 
   function resetGame() {
     bird = { x: 80, y: GROUND_Y / 2, vy: 0, angle: 0 };
     pipes = [];
     score = 0;
-    lastPipeTime = -9999;
+    pipeDistance = 0;
     deathTimer = 0;
+    shake = 0;
     groundOffset = 0;
   }
 
-  function addPipe(timestamp) {
+  function addPipe() {
     const minTop = 60;
     const maxTop = GROUND_Y - PIPE_GAP - 60;
-    pipes.push({
-      x: WIDTH + 10,
-      topH: minTop + Math.random() * (maxTop - minTop),
-      isPassed: false,
-    });
-    lastPipeTime = timestamp;
+    pipes.push({ x: WIDTH + 10, topH: random(minTop, maxTop), isPassed: false });
   }
 
   function hitTest() {
@@ -142,7 +146,7 @@ defineElement('game-flappy-bird', (root) => {
 
   function drawSky() {
     ctx.fillStyle = '#70c5ce';
-    ctx.fillRect(0, 0, WIDTH, GROUND_Y + 2);
+    ctx.fillRect(-10, -10, WIDTH + 20, GROUND_Y + 12);
   }
 
   function drawClouds() {
@@ -210,19 +214,19 @@ defineElement('game-flappy-bird', (root) => {
     const sandY = GROUND_Y + 18;
 
     ctx.fillStyle = '#ded895';
-    ctx.fillRect(0, sandY, WIDTH, HEIGHT - sandY);
+    ctx.fillRect(-10, sandY, WIDTH + 20, HEIGHT - sandY + 10);
 
     ctx.fillStyle = '#ccc07a';
-    ctx.fillRect(0, sandY, WIDTH, 4);
+    ctx.fillRect(-10, sandY, WIDTH + 20, 4);
     ctx.fillStyle = '#d4c882';
-    ctx.fillRect(0, sandY + 4, WIDTH, 3);
+    ctx.fillRect(-10, sandY + 4, WIDTH + 20, 3);
 
     ctx.fillStyle = '#74bf2e';
-    ctx.fillRect(0, GROUND_Y, WIDTH, 18);
+    ctx.fillRect(-10, GROUND_Y, WIDTH + 20, 18);
 
     ctx.save();
     ctx.beginPath();
-    ctx.rect(0, GROUND_Y, WIDTH, 18);
+    ctx.rect(-10, GROUND_Y, WIDTH + 20, 18);
     ctx.clip();
     ctx.strokeStyle = '#5aa820';
     ctx.lineWidth = 3;
@@ -236,9 +240,9 @@ defineElement('game-flappy-bird', (root) => {
     ctx.restore();
 
     ctx.fillStyle = '#a0e050';
-    ctx.fillRect(0, GROUND_Y, WIDTH, 2);
+    ctx.fillRect(-10, GROUND_Y, WIDTH + 20, 2);
     ctx.fillStyle = '#4a9c18';
-    ctx.fillRect(0, GROUND_Y + 15, WIDTH, 3);
+    ctx.fillRect(-10, GROUND_Y + 15, WIDTH + 20, 3);
   }
 
   function drawPipeSegment(x, y, w, h, shadeW) {
@@ -261,7 +265,7 @@ defineElement('game-flappy-bird', (root) => {
   function drawPipes() {
     for (const pipe of pipes) {
       const bottomY = pipe.topH + PIPE_GAP;
-      drawPipeSegment(pipe.x + 3, 0, BODY_WIDTH, pipe.topH - CAP_HEIGHT, 8);
+      drawPipeSegment(pipe.x + 3, -10, BODY_WIDTH, pipe.topH - CAP_HEIGHT + 10, 8);
       drawPipeCap(pipe.x, pipe.topH - CAP_HEIGHT, true);
       drawPipeCap(pipe.x, bottomY, false);
       drawPipeSegment(
@@ -277,9 +281,6 @@ defineElement('game-flappy-bird', (root) => {
   function drawBird() {
     ctx.save();
     ctx.translate(bird.x, bird.y);
-    const targetAngle =
-      bird.vy < 0 ? Math.max(-0.4, bird.vy * 0.06) : Math.min(1.3, bird.vy * 0.09);
-    bird.angle += (targetAngle - bird.angle) * 0.25;
     ctx.rotate(bird.angle);
 
     const radius = 13;
@@ -292,7 +293,7 @@ defineElement('game-flappy-bird', (root) => {
     ctx.fill();
     ctx.stroke();
 
-    const wingY = status === 'over' ? 0 : Math.sin(wingFrame * 0.15) * 3.5;
+    const wingY = status === 'over' ? 0 : Math.sin(ticks * 0.15) * 3.5;
     ctx.fillStyle = '#d98c10';
     ctx.strokeStyle = '#a06000';
     ctx.lineWidth = 1.5;
@@ -343,8 +344,7 @@ defineElement('game-flappy-bird', (root) => {
   }
 
   function drawIdle() {
-    const alpha = 0.8 + Math.sin(wingFrame * 0.05) * 0.2;
-    ctx.globalAlpha = alpha;
+    ctx.globalAlpha = 0.8 + Math.sin(ticks * 0.05) * 0.2;
     drawText('Tap or press SPACE', WIDTH / 2, GROUND_Y / 2 + 60, 16, '#ffffff', '#2a1a00');
     ctx.globalAlpha = 1;
   }
@@ -359,91 +359,101 @@ defineElement('game-flappy-bird', (root) => {
 
     drawText('GAME OVER', WIDTH / 2, GROUND_Y / 2 - 10, 32, '#ffffff', '#3a2a10');
 
-    if (deathTimer > 50) {
-      const alpha = 0.7 + Math.sin(wingFrame * 0.07) * 0.3;
-      ctx.globalAlpha = alpha;
+    if (deathTimer > RETRY_TICKS) {
+      ctx.globalAlpha = 0.7 + Math.sin(ticks * 0.07) * 0.3;
       drawText('Tap to retry', WIDTH / 2, GROUND_Y / 2 + 36, 16, '#ffffff', '#3a2a10');
       ctx.globalAlpha = 1;
     }
   }
 
   function draw() {
+    const intensity = (shake / SHAKE_TICKS) * 6;
     ctx.clearRect(0, 0, WIDTH, HEIGHT);
+    ctx.save();
+    ctx.translate(random(-intensity, intensity), random(-intensity, intensity));
     drawSky();
     drawClouds();
     drawCity();
     drawPipes();
     drawGround();
     drawBird();
+    ctx.restore();
+
     if (status === 'start') drawIdle();
     if (status === 'over') drawDead();
   }
 
-  function frame(delta, timestamp) {
-    const dt = Math.min(delta, 50) / STEP_MS;
-    wingFrame++;
+  function updatePlaying(dt) {
+    groundOffset += PIPE_SPEED * 1.1 * dt;
+    cityOffset += PIPE_SPEED * 0.18 * dt;
+    cloudOffset += PIPE_SPEED * 0.04 * dt;
+
+    pipeDistance += PIPE_SPEED * dt;
+    if (pipeDistance >= PIPE_SPACING) {
+      pipeDistance -= PIPE_SPACING;
+      addPipe();
+    }
+
+    bird.vy = Math.min(bird.vy + GRAVITY * dt, MAX_FALL);
+    bird.y += bird.vy * dt;
+
+    for (const pipe of pipes) {
+      pipe.x -= PIPE_SPEED * dt;
+      if (pipe.isPassed || pipe.x + PIPE_WIDTH >= bird.x) continue;
+      pipe.isPassed = true;
+      score++;
+      if (score <= highScore) continue;
+      highScore = score;
+      writeNumber(HIGH_SCORE_KEY, highScore);
+    }
+    pipes = pipes.filter((pipe) => pipe.x + PIPE_WIDTH > -10);
+
+    if (!hitTest()) return;
+    status = 'over';
+    shake = SHAKE_TICKS;
+  }
+
+  function updateDead(dt) {
+    deathTimer += dt;
+    cloudOffset += PIPE_SPEED * 0.04 * dt;
+    bird.vy = Math.min(bird.vy + GRAVITY * 1.6 * dt, MAX_FALL);
+    bird.y = Math.min(bird.y + bird.vy * dt, GROUND_Y - 13);
+  }
+
+  function update(dt) {
+    ticks += dt;
+    shake = Math.max(0, shake - dt);
 
     if (status === 'start') {
-      bird.y = GROUND_Y / 2 + Math.sin(wingFrame * 0.03) * 8;
-      cloudOffset += 0.15;
+      bird.y = GROUND_Y / 2 + Math.sin(ticks * 0.03) * 8;
+      cloudOffset += 0.15 * dt;
+    } else if (status === 'playing') {
+      updatePlaying(dt);
+    } else {
+      updateDead(dt);
     }
 
-    if (status === 'playing') {
-      groundOffset += PIPE_SPEED * 1.1 * dt;
-      cityOffset += PIPE_SPEED * 0.18 * dt;
-      cloudOffset += PIPE_SPEED * 0.04 * dt;
-      if (timestamp - lastPipeTime > PIPE_INTERVAL_MS) addPipe(timestamp);
-      bird.vy = Math.min(bird.vy + GRAVITY * dt, MAX_FALL);
-      bird.y += bird.vy * dt;
-      for (const pipe of pipes) {
-        pipe.x -= PIPE_SPEED * dt;
-        if (!pipe.isPassed && pipe.x + PIPE_WIDTH < bird.x) {
-          pipe.isPassed = true;
-          score++;
-          highScore = Math.max(highScore, score);
-          writeNumber(HIGH_SCORE_KEY, highScore);
-        }
-      }
-      pipes = pipes.filter((pipe) => pipe.x + PIPE_WIDTH > -10);
-      if (hitTest()) status = 'over';
-    }
-
-    if (status === 'over') {
-      deathTimer++;
-      bird.vy = Math.min(bird.vy + GRAVITY * 1.6 * dt, MAX_FALL);
-      bird.y = Math.min(bird.y + bird.vy * dt, GROUND_Y - 13);
-      cloudOffset += PIPE_SPEED * 0.04 * dt;
-    }
-
-    draw();
+    const targetAngle =
+      bird.vy < 0 ? Math.max(-0.4, bird.vy * 0.06) : Math.min(1.3, bird.vy * 0.09);
+    bird.angle += (targetAngle - bird.angle) * (1 - 0.75 ** dt);
   }
 
   function togglePause() {
     if (status !== 'playing') return;
     isPaused = !isPaused;
-    if (isPaused) {
-      pausedAt = performance.now();
-      loop.stop();
-    } else {
-      lastPipeTime += performance.now() - pausedAt;
-      loop.start();
-    }
+    if (isPaused) loop.stop();
+    else loop.start();
     render();
   }
 
   function jump() {
     if (isPaused) return;
-    if (status === 'start') {
-      status = 'playing';
+    if (status === 'start') status = 'playing';
+    if (status === 'playing') {
       bird.vy = JUMP_VY;
-      lastPipeTime = performance.now();
-      wingFrame = 0;
-    } else if (status === 'playing') {
-      bird.vy = JUMP_VY;
-    } else if (deathTimer > 50) {
+    } else if (deathTimer > RETRY_TICKS) {
       resetGame();
       status = 'start';
-      wingFrame = 0;
     }
   }
 
@@ -455,7 +465,7 @@ defineElement('game-flappy-bird', (root) => {
     }),
   ];
 
-  canvas.addEventListener('mousedown', jump);
+  canvas.addEventListener('pointerdown', jump);
   resetGame();
   render();
   loop.start();
