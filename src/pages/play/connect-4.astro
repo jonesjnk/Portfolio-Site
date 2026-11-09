@@ -11,7 +11,6 @@ import GameLayout from '../../layouts/GameLayout.astro';
           <div class="column">
             {Array.from({ length: 6 }, () => (
               <div class="cell">
-                <div class="drop-target" hidden></div>
                 <div class="piece"></div>
               </div>
             ))}
@@ -119,20 +118,13 @@ import GameLayout from '../../layouts/GameLayout.astro';
     border: 1px solid rgba(255, 255, 255, 0.05);
   }
 
-  .drop-target {
-    position: absolute;
-    width: 42px;
-    height: 42px;
-    border-radius: 50%;
-  }
-
   .piece {
     width: 42px;
     height: 42px;
     border-radius: 50%;
     transition:
-      background-color 0.1s ease,
-      box-shadow 0.1s ease;
+      background-color 0.15s ease,
+      box-shadow 0.15s ease;
   }
 
   .p1 {
@@ -154,7 +146,6 @@ import GameLayout from '../../layouts/GameLayout.astro';
     box-shadow: 0 0 10px color-mix(in srgb, var(--player) 35%, transparent);
   }
 
-  .drop-target,
   .piece.ghost {
     background: color-mix(in srgb, var(--player) 25%, transparent);
     box-shadow: 0 0 8px color-mix(in srgb, var(--player) 15%, transparent);
@@ -164,7 +155,6 @@ import GameLayout from '../../layouts/GameLayout.astro';
   .piece.dropping {
     position: relative;
     z-index: 10;
-    animation: drop-in var(--drop-dur) forwards;
   }
 
   .piece.winning-piece {
@@ -186,27 +176,6 @@ import GameLayout from '../../layouts/GameLayout.astro';
     width: 30px;
     height: 30px;
     border-radius: 50%;
-  }
-
-  @keyframes drop-in {
-    0% {
-      transform: translateY(var(--drop-dist));
-      animation-timing-function: cubic-bezier(0.55, 0, 1, 0.6);
-    }
-    82% {
-      transform: translateY(0);
-      animation-timing-function: cubic-bezier(0.33, 1, 0.66, 1);
-    }
-    91% {
-      transform: translateY(5px);
-      animation-timing-function: ease-out;
-    }
-    96% {
-      transform: translateY(-2px);
-    }
-    100% {
-      transform: translateY(0);
-    }
   }
 
   @keyframes pulse {

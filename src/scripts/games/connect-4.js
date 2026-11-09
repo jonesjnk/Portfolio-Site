@@ -3,12 +3,40 @@ import { defineElement, onGameKey } from '../game';
 const ROWS = 6;
 const COLS = 7;
 const CELL_SIZE = 62;
+const GRAVITY = 0.006;
+const BOUNCE = 0.25;
+const EASE_IN = 'cubic-bezier(0.11, 0, 0.5, 0)';
+const EASE_OUT = 'cubic-bezier(0.5, 1, 0.89, 1)';
 const DIRECTIONS = [
   [0, 1],
   [1, 0],
   [1, 1],
   [1, -1],
 ];
+
+function fallTime(height) {
+  return Math.sqrt((2 * height) / GRAVITY);
+}
+
+function dropMotion(height) {
+  const bounceHeight = height * BOUNCE ** 2;
+  const fall = fallTime(height);
+  const rise = fallTime(bounceHeight);
+  const duration = fall + rise * 2;
+  return {
+    duration,
+    keyframes: [
+      { transform: `translateY(${-height}px)`, easing: EASE_IN },
+      { transform: 'translateY(0)', offset: fall / duration, easing: EASE_OUT },
+      {
+        transform: `translateY(${-bounceHeight}px)`,
+        offset: (fall + rise) / duration,
+        easing: EASE_IN,
+      },
+      { transform: 'translateY(0)' },
+    ],
+  };
+}
 
 function createBoard() {
   return Array.from({ length: ROWS }, () => Array.from({ length: COLS }, () => null));
@@ -35,7 +63,7 @@ defineElement('game-connect-4', (root) => {
   const scores = { 1: 0, 2: 0 };
   let droppingCell = null;
   let isProcessing = false;
-  let finishTimer;
+  let dropAnimation;
 
   function getGhostRow(col) {
     for (let r = ROWS - 1; r >= 0; r--) {
@@ -53,7 +81,7 @@ defineElement('game-connect-4', (root) => {
     return hoveredCol === c && getGhostRow(c) === r;
   }
 
-  function isDropTarget(r, c) {
+  function isDroppingCell(r, c) {
     return droppingCell?.row === r && droppingCell?.col === c;
   }
 
@@ -65,40 +93,24 @@ defineElement('game-connect-4', (root) => {
     for (const [col, column] of columns.entries()) {
       column.classList.toggle(
         'hovered',
-        hoveredCol === col && status === 'playing' && !isColFull(col),
+        hoveredCol === col && status === 'playing' && !isProcessing && !isColFull(col),
       );
 
       for (const [row, cell] of [...column.children].entries()) {
         const value = board[row][col];
-        const dropTarget = cell.querySelector('.drop-target');
         const piece = cell.querySelector('.piece');
-        const isDropping = isDropTarget(row, col);
+        const isDropping = isDroppingCell(row, col);
         const isGhost = isGhostCell(row, col);
-
-        dropTarget.hidden = !isDropping;
-        dropTarget.classList.toggle('p1', value === 1);
-        dropTarget.classList.toggle('p2', value === 2);
 
         piece.classList.toggle('p1', value === 1 || (isGhost && currentPlayer === 1));
         piece.classList.toggle('p2', value === 2 || (isGhost && currentPlayer === 2));
         piece.classList.toggle('ghost', isGhost);
         piece.classList.toggle('winning-piece', isWinningCell(row, col));
         piece.classList.toggle('dropping', isDropping);
-
-        if (isDropping) {
-          piece.style.setProperty('--drop-dist', `-${row * CELL_SIZE || 30}px`);
-          piece.style.setProperty(
-            '--drop-dur',
-            `${row === 0 ? 0.1 : 0.08 + Math.sqrt(row) * 0.09}s`,
-          );
-        } else {
-          piece.style.removeProperty('--drop-dist');
-          piece.style.removeProperty('--drop-dur');
-        }
       }
     }
 
-    overOverlay.hidden = status !== 'over';
+    overOverlay.hidden = status !== 'over' || isProcessing;
     winnerText.hidden = winner === null;
     drawText.hidden = winner !== null;
     winnerText.textContent = `Player ${winner} Wins!`;
@@ -154,16 +166,18 @@ defineElement('game-connect-4', (root) => {
       currentPlayer = currentPlayer === 1 ? 2 : 1;
     }
 
-    clearTimeout(finishTimer);
-    finishTimer = setTimeout(() => {
+    const { keyframes, duration } = dropMotion(row * CELL_SIZE || 30);
+    const piece = columns[col].children[row].querySelector('.piece');
+    dropAnimation = piece.animate(keyframes, duration);
+    dropAnimation.onfinish = () => {
       droppingCell = null;
       isProcessing = false;
       render();
-    }, 500);
+    };
   }
 
   function resetGame() {
-    clearTimeout(finishTimer);
+    dropAnimation?.cancel();
     status = 'playing';
     board = createBoard();
     currentPlayer = 1;
@@ -194,7 +208,7 @@ defineElement('game-connect-4', (root) => {
   render();
 
   return () => {
-    clearTimeout(finishTimer);
+    dropAnimation?.cancel();
     removeKey();
   };
 });
