@@ -9,6 +9,11 @@
         --cell: 106.25px;
         --gap: 15px;
         --step: calc(var(--cell) + var(--gap));
+        --dark: #776e65;
+        --light: #f9f6f2;
+        --radius: 6px;
+        --ease-out: cubic-bezier(0.25, 1, 0.5, 1);
+        --ease-pop: cubic-bezier(0.34, 1.56, 0.64, 1);
       }
 
       body {
@@ -18,7 +23,7 @@
         min-height: 100dvh;
         overflow: hidden;
         background: #faf8ef;
-        color: #776e65;
+        color: var(--dark);
         font-family: Satoshi, sans-serif;
         font-weight: 700;
         user-select: none;
@@ -31,8 +36,9 @@
         height: 500px;
         padding: var(--gap);
         box-sizing: border-box;
-        border-radius: 6px;
+        border-radius: calc(var(--radius) * 2);
         background: #bbada0;
+        box-shadow: 0 4px 12px rgba(119, 110, 101, 0.2);
       }
 
       .grid {
@@ -43,100 +49,101 @@
 
       .grid div {
         height: var(--cell);
-        border-radius: 3px;
+        border-radius: var(--radius);
         background: rgba(238, 228, 218, 0.35);
       }
 
       .tile {
+        --fg: var(--light);
+        --size: 55px;
+        --glow: 0;
         position: absolute;
         top: var(--gap);
         left: var(--gap);
         width: var(--cell);
         height: var(--cell);
         transform: translate(calc(var(--x) * var(--step)), calc(var(--y) * var(--step)));
-        transition: transform 100ms ease-in-out;
+        transition: transform 100ms var(--ease-out);
       }
 
       .tile div {
+        display: grid;
+        place-items: center;
         height: 100%;
-        line-height: var(--cell);
-        text-align: center;
-        border-radius: 3px;
-        font-size: 55px;
-        background: #eee4da;
+        border-radius: var(--radius);
+        color: var(--fg);
+        background: var(--bg);
+        font-size: var(--size);
+        box-shadow: 0 0 30px 10px rgba(243, 215, 116, var(--glow));
       }
 
-      .tile-4 div {
-        background: #ede0c8;
+      .tile-2 {
+        --bg: #eee4da;
+        --fg: var(--dark);
       }
 
-      .tile-8 div {
-        color: #f9f6f2;
-        background: #f2b179;
+      .tile-4 {
+        --bg: #ede0c8;
+        --fg: var(--dark);
       }
 
-      .tile-16 div {
-        color: #f9f6f2;
-        background: #f59563;
+      .tile-8 {
+        --bg: #f2b179;
       }
 
-      .tile-32 div {
-        color: #f9f6f2;
-        background: #f67c5f;
+      .tile-16 {
+        --bg: #f59563;
       }
 
-      .tile-64 div {
-        color: #f9f6f2;
-        background: #f65e3b;
+      .tile-32 {
+        --bg: #f67c5f;
       }
 
-      .tile-128 div {
-        color: #f9f6f2;
-        background: #edcf72;
-        box-shadow: 0 0 30px 10px rgba(243, 215, 116, 0.24);
-        font-size: 45px;
+      .tile-64 {
+        --bg: #f65e3b;
       }
 
-      .tile-256 div {
-        color: #f9f6f2;
-        background: #edcc61;
-        box-shadow: 0 0 30px 10px rgba(243, 215, 116, 0.32);
-        font-size: 45px;
+      .tile-128 {
+        --bg: #edcf72;
+        --glow: 0.24;
+        --size: 45px;
       }
 
-      .tile-512 div {
-        color: #f9f6f2;
-        background: #edc850;
-        box-shadow: 0 0 30px 10px rgba(243, 215, 116, 0.4);
-        font-size: 45px;
+      .tile-256 {
+        --bg: #edcc61;
+        --glow: 0.32;
+        --size: 45px;
       }
 
-      .tile-1024 div {
-        color: #f9f6f2;
-        background: #edc53f;
-        box-shadow: 0 0 30px 10px rgba(243, 215, 116, 0.48);
-        font-size: 35px;
+      .tile-512 {
+        --bg: #edc850;
+        --glow: 0.4;
+        --size: 45px;
       }
 
-      .tile-2048 div {
-        color: #f9f6f2;
-        background: #edc22e;
-        box-shadow: 0 0 30px 10px rgba(243, 215, 116, 0.56);
-        font-size: 35px;
+      .tile-1024 {
+        --bg: #edc53f;
+        --glow: 0.48;
+        --size: 35px;
       }
 
-      .tile-super div {
-        color: #f9f6f2;
-        background: #3c3a32;
-        font-size: 30px;
+      .tile-2048 {
+        --bg: #edc22e;
+        --glow: 0.56;
+        --size: 35px;
+      }
+
+      .tile-super {
+        --bg: #3c3a32;
+        --size: 30px;
       }
 
       .new div {
-        animation: appear 200ms ease 100ms backwards;
+        animation: appear 200ms var(--ease-out) 100ms backwards;
       }
 
       .merged div {
-        animation: pop 200ms ease 100ms backwards;
+        animation: pop 200ms var(--ease-pop) 100ms backwards;
       }
 
       .message {
@@ -147,7 +154,9 @@
         place-content: center;
         gap: 40px;
         text-align: center;
+        border-radius: inherit;
         background: rgba(238, 228, 218, 0.5);
+        backdrop-filter: blur(3px);
         animation: fade-in 300ms ease 400ms both;
       }
 
@@ -157,7 +166,7 @@
       }
 
       .message.won {
-        color: #f9f6f2;
+        color: var(--light);
         background: rgba(237, 194, 46, 0.5);
       }
 
@@ -171,13 +180,15 @@
         padding: 0 20px;
         margin: 0 4px;
         border: 0;
-        border-radius: 3px;
-        color: #f9f6f2;
+        border-radius: var(--radius);
+        color: var(--light);
         background: #8f7a66;
         font: inherit;
         font-size: 16px;
         cursor: pointer;
-        transition: background-color 0.15s ease;
+        transition:
+          background-color 150ms ease,
+          transform 150ms var(--ease-out);
       }
 
       .message button:hover {
@@ -186,6 +197,7 @@
 
       .message button:active {
         background: #7f6a56;
+        transform: scale(0.96);
       }
 
       .keep {
@@ -213,9 +225,6 @@
         from {
           transform: scale(0);
         }
-        50% {
-          transform: scale(1.2);
-        }
       }
     </style>
   </head>
@@ -228,24 +237,7 @@
           <button class="retry">Try again</button>
         </div>
       </div>
-      <div class="grid">
-        <div></div>
-        <div></div>
-        <div></div>
-        <div></div>
-        <div></div>
-        <div></div>
-        <div></div>
-        <div></div>
-        <div></div>
-        <div></div>
-        <div></div>
-        <div></div>
-        <div></div>
-        <div></div>
-        <div></div>
-        <div></div>
-      </div>
+      <div class="grid"></div>
       <div class="tiles"></div>
     </div>
 
@@ -272,7 +264,6 @@
       const within = ({ x, y }) => x >= 0 && x < SIZE && y >= 0 && y < SIZE;
       const tileAt = (cell) => (within(cell) ? grid[cell.x][cell.y] : null);
       const tiles = () => grid.flat().filter(Boolean);
-      const terminated = () => over || (won && !keepPlaying);
 
       const emptyCells = () =>
         grid.flatMap((column, x) => column.flatMap((tile, y) => (tile ? [] : [{ x, y }])));
@@ -288,7 +279,7 @@
         const cells = emptyCells();
         if (!cells.length) return;
         const { x, y } = cells[Math.floor(Math.random() * cells.length)];
-        grid[x][y] = { x, y, value: Math.random() < 0.9 ? 2 : 4, previous: null, mergedFrom: null };
+        grid[x][y] = { x, y, value: Math.random() < 0.9 ? 2 : 4 };
       }
 
       function setup() {
@@ -304,7 +295,7 @@
       }
 
       function move(key) {
-        if (terminated()) return;
+        if (over || (won && !keepPlaying)) return;
         const [dx, dy] = VECTORS[key];
         const range = [...Array(SIZE).keys()];
         const xs = dx === 1 ? range.toReversed() : range;
@@ -331,15 +322,11 @@
             const target = tileAt(next);
             grid[x][y] = null;
             if (target && target.value === tile.value && !target.mergedFrom) {
-              grid[next.x][next.y] = {
-                ...next,
-                value: tile.value * 2,
-                previous: null,
-                mergedFrom: [tile, target],
-              };
+              const value = tile.value * 2;
+              grid[next.x][next.y] = { ...next, value, mergedFrom: [tile, target] };
               Object.assign(tile, next);
-              score += tile.value * 2;
-              if (tile.value * 2 === 2048) won = true;
+              score += value;
+              if (value === 2048) won = true;
             } else {
               grid[farthest.x][farthest.y] = tile;
               Object.assign(tile, farthest);
@@ -360,6 +347,7 @@
       }
 
       function addTile(tile) {
+        tile.mergedFrom?.forEach(addTile);
         const el = document.createElement('div');
         const inner = document.createElement('div');
         el.className = `tile tile-${tile.value > 2048 ? 'super' : tile.value}`;
@@ -373,7 +361,6 @@
         } else {
           place(el, tile);
           el.classList.add(tile.mergedFrom ? 'merged' : 'new');
-          tile.mergedFrom?.forEach(addTile);
         }
       }
 
@@ -381,7 +368,7 @@
         requestAnimationFrame(() => {
           tilesEl.replaceChildren();
           tiles().forEach(addTile);
-          window.parent.postMessage({ type: '2048-update', score }, '*');
+          parent.postMessage({ type: '2048-update', score }, '*');
           if (over) {
             messageEl.classList.add('over');
             messageText.textContent = 'Game over!';
@@ -428,6 +415,9 @@
         messageEl.className = 'message';
       });
 
+      document
+        .querySelector('.grid')
+        .append(...Array.from({ length: SIZE * SIZE }, () => document.createElement('div')));
       setup();
     </script>
   </body>
