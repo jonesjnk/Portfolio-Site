@@ -16,8 +16,8 @@
     "lint:fix": "oxlint --fix"
   },
   "dependencies": {
-    "@astrojs/sitemap": "^3.7.5",
-    "astro": "^7.4.12"
+    "@astrojs/sitemap": "^3.7.6",
+    "astro": "^7.4.13"
   },
   "devDependencies": {
     "@astrojs/compiler-rs": "^0.5.3",
