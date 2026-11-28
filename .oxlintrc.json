@@ -14,14 +14,6 @@
     "max-depth": "off",
     "sort-vars": "off"
   },
-  "overrides": [
-    {
-      "files": ["*.d.ts"],
-      "rules": {
-        "unicorn/require-module-specifiers": "off"
-      }
-    }
-  ],
   "env": {
     "browser": true,
     "es2026": true
