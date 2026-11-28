@@ -1,0 +1,219 @@
+<script setup lang="ts">
+import { useMediaQuery } from '@vueuse/core';
+
+import ArrowIcon from '@/components/ArrowIcon.vue';
+
+const isTouch = useMediaQuery('(pointer: coarse)');
+</script>
+
+<template>
+  <div class="game-page animate">
+    <div v-if="isTouch" class="content-wrap">
+      <h2 class="page-title">Not Supported on Touch Screens</h2>
+      <RouterLink class="back-link" to="/play">
+        <ArrowIcon class="back-link-arrow" />
+        <span class="back-link-text">Back to Arcade</span>
+      </RouterLink>
+    </div>
+    <slot v-else />
+  </div>
+</template>
+
+<style>
+.game-page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  min-height: 85vh;
+  text-align: center;
+  font-family: var(--font-satoshi);
+  user-select: none;
+}
+
+.game-page input {
+  user-select: text;
+}
+
+.game-wrapper {
+  display: flex;
+  gap: 30px;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.left-section {
+  position: relative;
+  padding: 12px;
+  background: #1a1a1a;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6);
+}
+
+.right-section {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  width: 240px;
+  text-align: left;
+}
+
+.row {
+  display: flex;
+  gap: 15px;
+  width: 100%;
+}
+
+.game-title {
+  margin-bottom: 10px;
+  font-size: 72px;
+  line-height: 1;
+}
+
+.info-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+}
+
+.score-box {
+  min-height: 120px;
+  width: 100%;
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.05), rgba(255, 215, 0, 0.01));
+  border-color: rgba(255, 215, 0, 0.3);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.label {
+  width: 100%;
+  margin-bottom: 8px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-align: center;
+  color: #94a3b8;
+}
+
+.score-label {
+  margin-bottom: 4px;
+  color: #ffd700;
+}
+
+.value {
+  font-size: 20px;
+  font-weight: 900;
+  line-height: 1;
+  word-break: break-all;
+}
+
+.score-value {
+  font-size: 42px;
+  text-shadow: 0 0 20px rgba(255, 215, 0, 0.2);
+}
+
+.score-divider {
+  width: 100%;
+  height: 1px;
+  margin: 8px 0;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.high-score-label {
+  margin-bottom: 2px;
+  font-size: 11px;
+}
+
+.high-score-value {
+  font-size: 24px;
+  color: #ffd700;
+  text-shadow: 0 0 10px rgba(255, 215, 0, 0.2);
+}
+
+.overlay-msg {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.85);
+  border-radius: 16px;
+  animation: overlay-in 0.25s ease-out;
+}
+
+.overlay-msg > :not(.overlay-btn, .overlay-actions) {
+  animation: overlay-content-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.05s backwards;
+}
+
+.overlay-msg > :nth-child(2) {
+  animation-delay: 0.1s;
+}
+
+.menu-title {
+  margin-bottom: 20px;
+  font-size: 32px;
+  text-transform: uppercase;
+}
+
+.overlay-btn {
+  padding: 10px 20px;
+  font-weight: 700;
+  color: #000000;
+  text-transform: uppercase;
+  background: #ffffff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.overlay-actions {
+  display: flex;
+  gap: 10px;
+}
+
+@keyframes overlay-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes overlay-content-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.97);
+  }
+}
+
+:where(.game-page) canvas,
+:where(.game-page) iframe {
+  display: block;
+  border: none;
+  border-radius: 4px;
+}
+
+@media (width <= 1200px) {
+  .game-wrapper {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .right-section {
+    width: 100%;
+    text-align: center;
+  }
+}
+</style>
+
+<style scoped>
+.back-link {
+  font-size: 14px;
+}
+</style>

@@ -1,11 +1,55 @@
+@font-face {
+  font-family: 'Andika';
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/andika-400.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Andika';
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/andika-700.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Satoshi';
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/satoshi-400.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Satoshi';
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/satoshi-700.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Satoshi';
+  font-weight: 900;
+  font-display: swap;
+  src: url('/fonts/satoshi-900.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Cherry Bomb One';
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/cherry-bomb-one-400.woff2') format('woff2');
+}
+
+:root {
+  --font-andika: 'Andika', sans-serif;
+  --font-satoshi: 'Satoshi', sans-serif;
+  --font-cherry-bomb-one: 'Cherry Bomb One', sans-serif;
+}
+
 * {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
-}
-
-[hidden] {
-  display: none !important;
 }
 
 html {
@@ -29,11 +73,14 @@ html {
 }
 
 body {
+  color: #ffffff;
+  font-family: var(--font-andika);
+}
+
+#app {
   display: flex;
   flex-direction: column;
   min-height: 100dvh;
-  color: #ffffff;
-  font-family: var(--font-andika);
 }
 
 body::before {

@@ -1,0 +1,187 @@
+<script setup lang="ts">
+import ArrowIcon from '@/components/ArrowIcon.vue';
+
+definePage({ meta: { title: 'Arcade' } });
+
+const games = [
+  { name: 'Tetris', icon: '🧱', path: '/play/tetris', color: '#ff4757' },
+  { name: '2048', icon: '🔢', path: '/play/2048', color: '#00a2ff' },
+  { name: 'Pong', icon: '🏓', path: '/play/pong', color: '#ffd700' },
+  { name: 'Minesweeper', icon: '💣', path: '/play/minesweeper', color: '#2ed573' },
+  { name: 'Stickman Hook', icon: '🪝', path: '/play/stickman-hook', color: '#ffd700' },
+  { name: 'Flappy Bird', icon: '🐦', path: '/play/flappy-bird', color: '#2ed573' },
+  { name: 'Hangman', icon: '🧍', path: '/play/hangman', color: '#ff4757' },
+  { name: 'Connect 4', icon: '🔵', path: '/play/connect-4', color: '#00a2ff' },
+];
+</script>
+
+<template>
+  <div class="content-wrap arcade-page">
+    <h1 class="page-title animate">Arcade</h1>
+
+    <p class="page-subtitle animate">A collection of modern and classic browser games.</p>
+
+    <div class="arcade-grid">
+      <div
+        v-for="(game, index) in games"
+        :key="game.path"
+        class="arcade-card animate"
+        :style="{ animationDelay: `${0.1 + index * 0.05}s` }"
+      >
+        <div class="arcade-card-top">
+          <span class="arcade-icon">{{ game.icon }}</span>
+          <h2 class="arcade-name">{{ game.name }}</h2>
+        </div>
+        <RouterLink
+          class="arcade-card-bottom"
+          :style="{ '--game-color': game.color }"
+          :to="game.path"
+        >
+          Play Now
+          <ArrowIcon class="arcade-play-arrow" :stroke-width="2" />
+        </RouterLink>
+      </div>
+    </div>
+  </div>
+</template>
+
+<style scoped>
+.arcade-page {
+  width: min(92%, 1080px);
+  padding-bottom: 60px;
+}
+
+.arcade-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 21px;
+  width: 100%;
+}
+
+.arcade-card {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  height: 210px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  animation-fill-mode: backwards;
+  transition:
+    transform 0.4s cubic-bezier(0.23, 1, 0.32, 1),
+    border-color 0.3s ease;
+}
+
+.arcade-card:hover,
+.arcade-card:has(:focus-visible) {
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-6px);
+}
+
+.arcade-icon {
+  display: inline-block;
+  user-select: none;
+  transition: transform 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.arcade-card:hover .arcade-icon,
+.arcade-card:has(:focus-visible) .arcade-icon {
+  transform: rotate(-8deg) scale(1.05);
+}
+
+.arcade-card-top {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px;
+}
+
+.arcade-icon {
+  font-size: 40px;
+}
+
+.arcade-name {
+  font-size: 26px;
+}
+
+.arcade-card-bottom {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 50px;
+  font-weight: 900;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--game-color);
+  background: color-mix(in srgb, var(--game-color) 5%, transparent);
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  user-select: none;
+  transition: color 0.3s ease;
+}
+
+.arcade-card-bottom::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--game-color);
+  transform: scaleY(0);
+  transform-origin: bottom;
+  transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.arcade-card-bottom:hover,
+.arcade-card-bottom:focus-visible {
+  color: #1a1c24;
+}
+
+.arcade-card-bottom:hover::before,
+.arcade-card-bottom:focus-visible::before {
+  transform: scaleY(1);
+}
+
+.arcade-play-arrow {
+  flex-shrink: 0;
+  width: 0;
+  height: 14px;
+  margin-left: -8px;
+  opacity: 0;
+  transform: translateX(-6px);
+  transition:
+    width 0.3s ease,
+    margin-left 0.3s ease,
+    opacity 0.3s ease,
+    transform 0.3s ease;
+}
+
+.arcade-card-bottom:hover .arcade-play-arrow,
+.arcade-card-bottom:focus-visible .arcade-play-arrow {
+  width: 14px;
+  margin-left: 0;
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.arcade-card-bottom:focus-visible {
+  outline-offset: -3px;
+}
+
+@media (width <= 960px) {
+  .arcade-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (width <= 480px) {
+  .arcade-grid {
+    grid-template-columns: 1fr;
+  }
+}
+</style>

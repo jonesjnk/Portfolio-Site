@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["eslint", "typescript", "unicorn", "oxc", "import", "promise"],
+  "plugins": ["eslint", "typescript", "unicorn", "oxc", "vue", "import", "promise"],
   "categories": {
     "correctness": "error",
     "suspicious": "error",
@@ -14,6 +14,14 @@
     "max-depth": "off",
     "sort-vars": "off"
   },
+  "overrides": [
+    {
+      "files": ["*.d.ts"],
+      "rules": {
+        "unicorn/require-module-specifiers": "off"
+      }
+    }
+  ],
   "env": {
     "browser": true,
     "es2026": true

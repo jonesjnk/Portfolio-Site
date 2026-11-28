@@ -1,3 +1,3 @@
 # Personal Site
 
-https://jjank.com. Built with Astro.
+https://jjank.com. Built with Vue.

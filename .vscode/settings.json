@@ -1,6 +1,7 @@
 {
   "explorer.fileNesting.enabled": true,
   "explorer.fileNesting.patterns": {
-    "package.json": "package-lock.json, pnpm*, .yarnrc*, yarn*, .eslint*, eslint*, .oxlint*, oxlint*, .oxfmt*, .prettier*, prettier*, .editorconfig"
+    "package.json": "package-lock.json, .oxlintrc.json, .oxfmtrc.json",
+    "tsconfig.json": "tsconfig.*.json, typed-router.d.ts"
   }
 }
